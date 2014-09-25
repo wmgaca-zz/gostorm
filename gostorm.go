@@ -98,18 +98,28 @@ func NewGostorm() *GostormConfig {
 	}
 }
 
-func (gs *GostormConfig) getFromMemcached(key string) (string, error) {
+func (gs *GostormConfig) getFromMemcached(key string, retChan chan string, errChan chan error) {
 	ret, err := gs.memcachedConn.Get("go:test")
 
-	return string(ret.Value[:]), err
-}
-
-func (gs *GostormConfig) getFromRedis(key string) (string, error) {
-	if gs.redisConn == nil {
-		return "", errors.New("Redis: connection error, something's seriously fucked.")
+	if err != nil {
+		errChan <- err
+	} else {
+		retChan <- string(ret.Value[:])
 	}
 
-	return redis.String(gs.redisConn.Do("get", key))
+}
+
+func (gs *GostormConfig) getFromRedis(key string, retChan chan string, errChan chan error) {
+	if gs.redisConn == nil {
+		errChan <- errors.New("Redis: connection error, something's seriously fucked.")
+	} else {
+		ret, err := redis.String(gs.redisConn.Do("get", key))
+		if err != nil {
+			errChan <- err
+		} else {
+			retChan <- ret
+		}
+	}
 }
 
 // Get a value by key
@@ -118,21 +128,34 @@ func (gs *GostormConfig) Get(key string) (string, error) {
 		return "", errors.New("Gostorm.Get: something went terribly, terribly wrong.")
 	}
 
-	ret, err := gs.getFromRedis(key)
-	if err != nil {
-		return "", err
+	retChan := make(chan string)
+	errChan := make(chan error)
+
+	go gs.getFromRedis(key, retChan, errChan)
+	go gs.getFromMemcached(key, retChan, errChan)
+
+	var (
+		ret string
+		err error
+	)
+
+	retCount := 0
+
+	for {
+		select {
+		case ret = <-retChan:
+			retCount++
+			log.Printf("Got a result => %s", ret)
+			return ret, nil
+		case err = <-errChan:
+			retCount++
+			log.Printf("Got an error => %s", err)
+			// 2 == number of data stores we're using at the moment ;)
+			if retCount == 2 {
+				return "", err
+			}
+		}
 	}
-
-	log.Printf("Gostorm.Get(%s) => Redis     => %s", key, ret)
-
-	ret, err = gs.getFromMemcached(key)
-	if err != nil {
-		return "", err
-	}
-
-	log.Printf("Gostorm.Get(%s) => Memcahced => %s", key, ret)
-
-	return ret, nil
 }
 
 func main() {
