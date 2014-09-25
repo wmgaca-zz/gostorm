@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"time"
 
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/garyburd/redigo/redis"
@@ -23,6 +24,8 @@ var (
 )
 
 const redisProtocol = "tcp"
+
+const defaultTimeout = 10 * time.Second
 
 func init() {
 	mySqlConnString = os.Getenv("MYSQL_CONN_STRING")
@@ -99,6 +102,8 @@ func NewGostorm() *GostormConfig {
 }
 
 func (gs *GostormConfig) getFromMemcached(key string, retChan chan string, errChan chan error) {
+	// time.Sleep(time.Second * 10)
+
 	ret, err := gs.memcachedConn.Get("go:test")
 
 	if err != nil {
@@ -110,6 +115,8 @@ func (gs *GostormConfig) getFromMemcached(key string, retChan chan string, errCh
 }
 
 func (gs *GostormConfig) getFromRedis(key string, retChan chan string, errChan chan error) {
+	// time.Sleep(time.Second * 10)
+
 	if gs.redisConn == nil {
 		errChan <- errors.New("Redis: connection error, something's seriously fucked.")
 	} else {
@@ -122,8 +129,8 @@ func (gs *GostormConfig) getFromRedis(key string, retChan chan string, errChan c
 	}
 }
 
-// Get a value by key
-func (gs *GostormConfig) Get(key string) (string, error) {
+// GetWithTimeout a value by key
+func (gs *GostormConfig) GetWithTimeout(key string, timeout time.Duration) (string, error) {
 	if gs == nil {
 		return "", errors.New("Gostorm.Get: something went terribly, terribly wrong.")
 	}
@@ -140,6 +147,7 @@ func (gs *GostormConfig) Get(key string) (string, error) {
 	)
 
 	retCount := 0
+	startTime := time.Now()
 
 	for {
 		select {
@@ -154,14 +162,24 @@ func (gs *GostormConfig) Get(key string) (string, error) {
 			if retCount == 2 {
 				return "", err
 			}
+		default:
+			if time.Since(startTime) > timeout {
+				return "", errors.New("Gostorm connection timeout.")
+			}
 		}
+
 	}
+}
+
+// Get a value by key
+func (gs *GostormConfig) Get(key string) (string, error) {
+	return gs.GetWithTimeout(key, defaultTimeout)
 }
 
 func main() {
 	gs := NewGostorm()
 
-	_, err := gs.Get("go:test")
+	_, err := gs.GetWithTimeout("go:test", 3*time.Second)
 	if err != nil {
 		log.Fatal(err)
 		return
