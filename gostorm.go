@@ -4,155 +4,38 @@ import (
 	"errors"
 	"log"
 	"os"
-	"reflect"
 	"time"
 
-	"github.com/bradfitz/gomemcache/memcache"
-	"github.com/garyburd/redigo/redis"
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/wmgaca/gostorm/drivers/memcache"
+	"github.com/wmgaca/gostorm/drivers/redis"
 )
 
-var (
-	// Debug mode, more verbose if true
-	Debug = false
-
-	mySqlConnString string
-
-	redisConnString string
-
-	memcachedConnString string
-)
-
-const redisProtocol = "tcp"
+// Debug mode, more verbose if true
+var Debug = false
 
 const defaultTimeout = 10 * time.Second
 
-// GostormDatastoreDriver describes the interface for Gostorm's datasource driver
-type GostormDatastoreDriver interface {
-	// Get value from datastore
-	Get(string, chan string, chan error)
-}
-
-// MemcachedDriver for Gostorm
-type MemcachedDriver struct {
-	conn memcache.Client
-}
-
-// NewMemcachedDriver returns a new RedisDriver, duh.
-func NewMemcachedDriver() *MemcachedDriver {
-	memcachedConnString = os.Getenv("MEMCACHED_CONN_STRING")
-	if len(memcachedConnString) == 0 {
-		ExitWithErr(errors.New("Missing MEMCACHED_CONN_STRING env var, are we?"))
-	}
-
-	if Debug {
-		log.Printf("Connecting to memcached => %s", memcachedConnString)
-	}
-
-	return &MemcachedDriver{
-		conn: *memcache.New(memcachedConnString),
-	}
-}
-
-// Get gets data, duh
-func (drv *MemcachedDriver) Get(key string, retChan chan string, errChan chan error) {
-	ret, err := drv.conn.Get("go:test")
-
-	if err != nil {
-		errChan <- err
-	} else {
-		retChan <- string(ret.Value[:])
-	}
-}
-
-// RedisDriver for Gostorm
-type RedisDriver struct {
-	conn redis.Conn
-}
-
-// NewRedisDriver returns a new RedisDriver, duh.
-func NewRedisDriver() *RedisDriver {
-	redisConnString = os.Getenv("REDIS_CONN_STRING")
-	if len(redisConnString) == 0 {
-		ExitWithErr(errors.New("Missing REDIS_CONN_STRING env var, are we?"))
-	}
-
-	conn, err := redis.Dial(redisProtocol, redisConnString)
-	if Debug {
-		log.Printf("Connecting to Redis => %s", redisConnString)
-	}
-	if err != nil {
-		log.Fatal("Can't connect to Redis.")
-		conn = nil
-	} else {
-		log.Println("Connecting to Redis => OK")
-	}
-
-	return &RedisDriver{
-		conn: conn,
-	}
-}
-
-// Get return a value for a given key or an error if occured
-func (drv *RedisDriver) Get(key string, retChan chan string, errChan chan error) {
-	if drv.conn == nil {
-		errChan <- errors.New("Redis: connection error, something's seriously fucked.")
-	} else {
-		ret, err := redis.String(drv.conn.Do("get", key))
-		if err != nil {
-			errChan <- err
-		} else {
-			retChan <- ret
-		}
-	}
-}
-
 func init() {
-	mySqlConnString = os.Getenv("MYSQL_CONN_STRING")
-	if len(mySqlConnString) == 0 {
-		ExitWithErr(errors.New("Missing MYSQL_CONN_STRING env var, are we?"))
-	}
-
 	if len(os.Getenv("DEBUG")) > 0 {
 		log.Println("Debug mode on.")
 		Debug = true
 	}
 }
 
-// GostormConfig is Gostorm's config
-type GostormConfig struct {
-	drivers []GostormDatastoreDriver
+// Gostorm is Gostorm's config
+type Gostorm struct {
+	drivers []Driver
 }
 
-// NewGostorm sets up Gostorm's connections
-func NewGostorm(drivers ...GostormDatastoreDriver) *GostormConfig {
-
-	// log.Println(drivers)
-	for _, driver := range drivers {
-		log.Println("A driver =>")
-		log.Println(driver)
-		log.Println(reflect.TypeOf(driver))
-	}
-
-	// // MySQL
-	// myConn, err := sql.Open("mysql", mySqlConnString)
-	// if Debug {
-	// 	log.Printf("Connecting to MySQL => %s", mySqlConnString)
-	// }
-	// if err != nil {
-	// 	log.Fatal("Can't connect to MySQL.")
-	// 	myConn = nil
-	// } else {
-	// 	log.Println("Connecting to MySQL => OK")
-	// }
-
-	return &GostormConfig{
+// New sets up Gostorm's connections
+func New(drivers ...Driver) *Gostorm {
+	return &Gostorm{
 		drivers: drivers,
 	}
 }
 
 // GetWithTimeout a value by key
-func (gs *GostormConfig) GetWithTimeout(key string, timeout time.Duration) (string, error) {
+func (gs *Gostorm) GetWithTimeout(key string, timeout time.Duration) (string, error) {
 	if gs == nil {
 		return "", errors.New("Gostorm.Get: something went terribly, terribly wrong.")
 	}
@@ -194,20 +77,17 @@ func (gs *GostormConfig) GetWithTimeout(key string, timeout time.Duration) (stri
 }
 
 // Get a value by key
-func (gs *GostormConfig) Get(key string) (string, error) {
+func (gs *Gostorm) Get(key string) (string, error) {
 	return gs.GetWithTimeout(key, defaultTimeout)
 }
 
 func main() {
-	redisDriver := NewRedisDriver()
-	memcachedDriver := NewMemcachedDriver()
+	redisDriver, err := redis.New()
+	memcachedDriver, err := memcache.New()
 
-	log.Println(reflect.TypeOf(redisDriver))
-	log.Println(reflect.TypeOf(memcachedDriver))
+	gs := New(redisDriver, memcachedDriver)
 
-	gs := NewGostorm(redisDriver, memcachedDriver)
-
-	_, err := gs.GetWithTimeout("go:test", 3*time.Second)
+	_, err = gs.GetWithTimeout("go:test", 3*time.Second)
 	if err != nil {
 		log.Fatal(err)
 		return
