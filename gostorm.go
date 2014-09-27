@@ -85,7 +85,9 @@ func main() {
 	redisDriver, err := redis.New()
 	memcachedDriver, err := memcache.New()
 
-	gs := New(redisDriver, memcachedDriver)
+	drivers := []Driver{redisDriver, memcachedDriver}
+
+	gs := New(drivers...)
 
 	_, err = gs.GetWithTimeout("go:test", 3*time.Second)
 	if err != nil {
