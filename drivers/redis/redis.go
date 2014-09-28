@@ -3,14 +3,11 @@ package redis
 import (
 	"errors"
 	"log"
-	"os"
 
 	redigo "github.com/garyburd/redigo/redis"
 )
 
 const redisProtocol = "tcp"
-
-var redisConnString string
 
 // Driver for Gostorm
 type Driver struct {
@@ -18,15 +15,10 @@ type Driver struct {
 }
 
 // New returns a new RedisDriver, duh.
-func New() (*Driver, error) {
-	redisConnString = os.Getenv("REDIS_CONN_STRING")
-	if len(redisConnString) == 0 {
-		return nil, errors.New("Missing REDIS_CONN_STRING env var, are we?")
-	}
+func New(connString string) (*Driver, error) {
+	conn, err := redigo.Dial(redisProtocol, connString)
 
-	conn, err := redigo.Dial(redisProtocol, redisConnString)
-
-	log.Printf("Connecting to Redis => %s", redisConnString)
+	log.Printf("Connecting to Redis => %s", connString)
 
 	if err != nil {
 		return nil, errors.New("Can't connect to Redis.")

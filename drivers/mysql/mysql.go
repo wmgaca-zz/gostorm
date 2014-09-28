@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"log"
-	"os"
 
 	// Well, go vet makes me comment on this.
 	_ "github.com/go-sql-driver/mysql"
@@ -16,16 +15,11 @@ type Driver struct {
 }
 
 // New Driver instance, right?
-func New() (*Driver, error) {
-	mySqlConnString := os.Getenv("MYSQL_CONN_STRING")
-	if len(mySqlConnString) == 0 {
-		return nil, errors.New("Missing MYSQL_CONN_STRING env var, are we?")
-	}
-
+func New(connString string) (*Driver, error) {
 	// Package mysql should:
-	myConn, err := sql.Open("mysql", mySqlConnString)
+	myConn, err := sql.Open("mysql", connString)
 
-	log.Printf("Connecting to MySQL => %s", mySqlConnString)
+	log.Printf("Connecting to MySQL => %s", connString)
 
 	if err != nil {
 		return nil, errors.New("Can't connect to MySQL.")

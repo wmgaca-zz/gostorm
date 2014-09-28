@@ -1,14 +1,10 @@
 package memcache
 
 import (
-	"errors"
 	"log"
-	"os"
 
 	gomemcache "github.com/bradfitz/gomemcache/memcache"
 )
-
-var memcachedConnString string
 
 // Driver for Gostorm
 type Driver struct {
@@ -16,16 +12,11 @@ type Driver struct {
 }
 
 // New returns a new memcache.Driver
-func New() (*Driver, error) {
-	memcachedConnString = os.Getenv("MEMCACHED_CONN_STRING")
-	if len(memcachedConnString) == 0 {
-		return nil, errors.New("Missing MEMCACHED_CONN_STRING env var, are we?")
-	}
-
-	log.Printf("Connecting to memcached => %s", memcachedConnString)
+func New(connString string) (*Driver, error) {
+	log.Printf("Connecting to memcached => %s", connString)
 
 	driver := &Driver{
-		conn: *gomemcache.New(memcachedConnString),
+		conn: *gomemcache.New(connString),
 	}
 
 	return driver, nil

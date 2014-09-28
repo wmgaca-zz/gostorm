@@ -82,14 +82,37 @@ func (gs *Gostorm) Get(key string) (string, error) {
 }
 
 func main() {
-	redisDriver, err := redis.New()
-	memcachedDriver, err := memcache.New()
+	var drivers []Driver
 
-	drivers := []Driver{redisDriver, memcachedDriver}
+	redisConnString := os.Getenv("REDIS_CONN_STRING")
+	if len(redisConnString) == 0 {
+		// return nil, errors.New("Missing REDIS_CONN_STRING env var, are we?")
+	} else {
+		redisDriver, err := redis.New(redisConnString)
+		if err == nil {
+			drivers = append(drivers, redisDriver)
+		}
+	}
+
+	memcachedConnString := os.Getenv("MEMCACHED_CONN_STRING")
+	if len(memcachedConnString) == 0 {
+		// return nil, errors.New("Missing MEMCACHED_CONN_STRING env var, are we?")
+	} else {
+		memcachedDriver, err := memcache.New(memcachedConnString)
+		if err == nil {
+			drivers = append(drivers, memcachedDriver)
+		}
+	}
+
+	// MySQL
+	mySqlConnString := os.Getenv("MYSQL_CONN_STRING")
+	if len(mySqlConnString) == 0 {
+		// return nil, errors.New("Missing MYSQL_CONN_STRING env var, are we?")
+	}
 
 	gs := New(drivers...)
 
-	_, err = gs.GetWithTimeout("go:test", 3*time.Second)
+	_, err := gs.GetWithTimeout("go:test", 3*time.Second)
 	if err != nil {
 		log.Fatal(err)
 		return
