@@ -36,10 +36,6 @@ func New(drivers ...Driver) *Gostorm {
 
 // GetWithTimeout a value by key
 func (gs *Gostorm) GetWithTimeout(key string, timeout time.Duration) (string, error) {
-	if gs == nil {
-		return "", errors.New("Gostorm.Get: something went terribly, terribly wrong.")
-	}
-
 	retChan := make(chan string)
 	errChan := make(chan error)
 
