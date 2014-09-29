@@ -2,9 +2,13 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"time"
+
+	"github.com/gorilla/mux"
 
 	"github.com/wmgaca/gostorm/drivers/memcache"
 	"github.com/wmgaca/gostorm/drivers/redis"
@@ -12,6 +16,8 @@ import (
 
 // Debug mode, more verbose if true
 var Debug = false
+
+var gostormInstance Gostorm
 
 const defaultTimeout = 10 * time.Second
 
@@ -55,11 +61,11 @@ func (gs *Gostorm) GetWithTimeout(key string, timeout time.Duration) (string, er
 		select {
 		case ret = <-retChan:
 			retCount++
-			log.Printf("Got a result => %s", ret)
+			log.Printf("gs.ret => %s", ret)
 			return ret, nil
 		case err = <-errChan:
 			retCount++
-			log.Printf("Got an error => %s", err)
+			log.Printf("gs.err => %s", err)
 			// 2 == number of data stores we're using at the moment ;)
 			if retCount == 2 {
 				return "", err
@@ -77,12 +83,43 @@ func (gs *Gostorm) Get(key string) (string, error) {
 	return gs.GetWithTimeout(key, defaultTimeout)
 }
 
+func homeHandler(w http.ResponseWriter, r *http.Request) {
+	ret := "Go, baby, go!"
+
+	log.Printf("%s / => %s", r.Method, ret)
+
+	fmt.Fprintf(w, "%s\n", ret)
+}
+
+func getHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	key := vars["key"]
+
+	ret, err := gostormInstance.Get(key)
+	if err != nil {
+		ret = err.Error()
+	}
+
+	log.Printf("%s /get/%s/ => %s", r.Method, key, ret)
+
+	fmt.Fprintf(w, "%s\n", ret)
+}
+
+func configureRouter() *mux.Router {
+	router := mux.NewRouter()
+
+	router.HandleFunc("/", homeHandler).Methods("GET")
+	router.HandleFunc("/get/{key:[a-zA-Z0-9:.]+}/", getHandler).Methods("GET")
+
+	return router
+}
+
 func main() {
 	var drivers []Driver
 
 	redisConnString := os.Getenv("REDIS_CONN_STRING")
 	if len(redisConnString) == 0 {
-		// return nil, errors.New("Missing REDIS_CONN_STRING env var, are we?")
+		log.Println("Missing REDIS_CONN_STRING env var, are we?")
 	} else {
 		redisDriver, err := redis.New(redisConnString)
 		if err == nil {
@@ -92,7 +129,7 @@ func main() {
 
 	memcachedConnString := os.Getenv("MEMCACHED_CONN_STRING")
 	if len(memcachedConnString) == 0 {
-		// return nil, errors.New("Missing MEMCACHED_CONN_STRING env var, are we?")
+		log.Println("Missing MEMCACHED_CONN_STRING env var, are we?")
 	} else {
 		memcachedDriver, err := memcache.New(memcachedConnString)
 		if err == nil {
@@ -100,17 +137,16 @@ func main() {
 		}
 	}
 
+	gostormInstance = *New(drivers...)
+
 	// MySQL
 	mySqlConnString := os.Getenv("MYSQL_CONN_STRING")
 	if len(mySqlConnString) == 0 {
 		// return nil, errors.New("Missing MYSQL_CONN_STRING env var, are we?")
 	}
 
-	gs := New(drivers...)
-
-	_, err := gs.GetWithTimeout("go:test", 3*time.Second)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
+	http.Handle("/", configureRouter())
+	ServerAddr := ":10666"
+	log.Printf("Running server on %s", ServerAddr)
+	panic(http.ListenAndServe(ServerAddr, nil))
 }
