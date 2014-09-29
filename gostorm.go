@@ -15,7 +15,7 @@ import (
 )
 
 // Debug mode, more verbose if true
-var Debug = false
+var Debug = true
 
 var gostormInstance Gostorm
 
@@ -115,6 +115,8 @@ func configureRouter() *mux.Router {
 }
 
 func main() {
+	log.Println("Starting gostorm...")
+
 	var drivers []Driver
 
 	redisConnString := os.Getenv("REDIS_CONN_STRING")
