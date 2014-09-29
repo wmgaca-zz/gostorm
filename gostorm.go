@@ -146,7 +146,7 @@ func main() {
 	}
 
 	http.Handle("/", configureRouter())
-	ServerAddr := ":10666"
+	ServerAddr := ":8000"
 	log.Printf("Running server on %s", ServerAddr)
 	panic(http.ListenAndServe(ServerAddr, nil))
 }

@@ -1,6 +1,9 @@
 {
 	"ImportPath": "github.com/wmgaca/gostorm",
 	"GoVersion": "go1.2.2",
+	"Packages": [
+		"./..."
+	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/bradfitz/gomemcache/memcache",
