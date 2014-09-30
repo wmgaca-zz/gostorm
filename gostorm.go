@@ -16,7 +16,7 @@ var Debug = true
 
 var gostormInstance Gostorm
 
-const defaultTimeout = 10 * time.Second
+const defaultTimeout = 5 * time.Second
 
 func init() {
 	if len(os.Getenv("DEBUG")) > 0 {
@@ -114,7 +114,7 @@ func configureRouter() *mux.Router {
 func main() {
 	// 	log.Println("Starting gostorm...")
 	//
-	// 	var drivers []Driver
+	var drivers []Driver
 	//
 	// 	redisConnString := os.Getenv("REDIS_CONN_STRING")
 	// 	if len(redisConnString) == 0 {
@@ -136,7 +136,7 @@ func main() {
 	// 		}
 	// 	}
 	//
-	// 	gostormInstance = *New(drivers...)
+	gostormInstance = *New(drivers...)
 	//
 	// 	// MySQL
 	// 	mySqlConnString := os.Getenv("MYSQL_CONN_STRING")
