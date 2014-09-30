@@ -31,14 +31,25 @@ func New(connString string) (*Driver, error) {
 
 // Get return a value for a given key or an error if occured
 func (drv *Driver) Get(key string, retChan chan string, errChan chan error) {
-	if drv.conn == nil {
-		errChan <- errors.New("Redis: connection error, something's seriously fucked.")
+	ret, err := redigo.String(drv.conn.Do("get", key))
+
+	if err != nil {
+		errChan <- err
 	} else {
-		ret, err := redigo.String(drv.conn.Do("get", key))
-		if err != nil {
-			errChan <- err
-		} else {
-			retChan <- ret
-		}
+		retChan <- ret
+	}
+}
+
+// Set sets data :)
+func (drv *Driver) Set(key, value string, retChan chan string, errChan chan error) {
+	log.Printf("redis.set %s=%s", key, value)
+	ret, err := redigo.String(drv.conn.Do("set", key, value))
+
+	if err != nil {
+		log.Printf("redis.set err=%s", err.Error())
+		errChan <- err
+	} else {
+		log.Println("redis.set OK")
+		retChan <- ret
 	}
 }

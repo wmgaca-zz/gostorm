@@ -32,3 +32,18 @@ func (drv *Driver) Get(key string, retChan chan string, errChan chan error) {
 		retChan <- string(ret.Value[:])
 	}
 }
+
+// Set sets data :)
+func (drv *Driver) Set(key, value string, retChan chan string, errChan chan error) {
+	err := drv.conn.Set(&gomemcache.Item{
+		Key:   key,
+		Value: []byte(value),
+	})
+
+	if err != nil {
+		errChan <- err
+	} else {
+		retChan <- ""
+	}
+
+}
