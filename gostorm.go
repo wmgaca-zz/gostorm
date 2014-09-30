@@ -143,19 +143,15 @@ func main() {
 	// 	if len(mySqlConnString) == 0 {
 	// 		// return nil, errors.New("Missing MYSQL_CONN_STRING env var, are we?")
 	// 	}
-	//
-	// 	http.Handle("/", configureRouter())
-	//
-	// 	port := os.Getenv("PORT")
-	// 	log.Printf("PORT => %s", port)
-	// 	ServerAddr := "127.0.0.1:" + port
-	// 	log.Printf("Running server on %s", ServerAddr)
-	//
-	// 	panic(http.ListenAndServe(ServerAddr, nil))
 
-	http.HandleFunc("/", homeHandler)
+	ServerAddr := ":" + os.Getenv("PORT")
+	log.Printf("Running server on %s", ServerAddr)
+
+	http.Handle("/", configureRouter())
+	// http.HandleFunc("/", homeHandler)
 	fmt.Println("listening...")
-	err := http.ListenAndServe(":"+os.Getenv("PORT"), nil)
+
+	err := http.ListenAndServe(ServerAddr, nil)
 	if err != nil {
 		panic(err)
 	}
