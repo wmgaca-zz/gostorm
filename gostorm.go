@@ -13,7 +13,7 @@ import (
 )
 
 // Debug mode, more verbose if true
-var Debug = true
+var Debug = false
 
 var gostormInstance Gostorm
 
@@ -21,9 +21,10 @@ const defaultTimeout = 10 * time.Second
 
 func init() {
 	if len(os.Getenv("DEBUG")) > 0 {
-		log.Println("Debug mode on.")
 		Debug = true
 	}
+
+	log.Printf("gostorm Debug=%t", Debug)
 }
 
 // Gostorm is Gostorm's config
@@ -59,12 +60,11 @@ func (gs *Gostorm) GetWithTimeout(key string, timeout time.Duration) (string, er
 		select {
 		case ret = <-retChan:
 			retCount++
-			log.Printf("gs.ret => %s", ret)
+			log.Printf("gostorm.ret => %s", ret)
 			return ret, nil
 		case err = <-errChan:
 			retCount++
-			log.Printf("gs.err => %s", err)
-			// 2 == number of data stores we're using at the moment ;)
+			log.Printf("gostorm.err => %s", err)
 			if retCount == len(gs.drivers) {
 				return "", err
 			}
