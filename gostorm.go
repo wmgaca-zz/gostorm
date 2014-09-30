@@ -9,9 +9,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-
-	"github.com/wmgaca/gostorm/drivers/memcache"
-	"github.com/wmgaca/gostorm/drivers/redis"
 )
 
 // Debug mode, more verbose if true
@@ -115,44 +112,51 @@ func configureRouter() *mux.Router {
 }
 
 func main() {
-	log.Println("Starting gostorm...")
+	// 	log.Println("Starting gostorm...")
+	//
+	// 	var drivers []Driver
+	//
+	// 	redisConnString := os.Getenv("REDIS_CONN_STRING")
+	// 	if len(redisConnString) == 0 {
+	// 		log.Println("Missing REDIS_CONN_STRING env var, are we?")
+	// 	} else {
+	// 		redisDriver, err := redis.New(redisConnString)
+	// 		if err == nil {
+	// 			drivers = append(drivers, redisDriver)
+	// 		}
+	// 	}
+	//
+	// 	memcachedConnString := os.Getenv("MEMCACHED_CONN_STRING")
+	// 	if len(memcachedConnString) == 0 {
+	// 		log.Println("Missing MEMCACHED_CONN_STRING env var, are we?")
+	// 	} else {
+	// 		memcachedDriver, err := memcache.New(memcachedConnString)
+	// 		if err == nil {
+	// 			drivers = append(drivers, memcachedDriver)
+	// 		}
+	// 	}
+	//
+	// 	gostormInstance = *New(drivers...)
+	//
+	// 	// MySQL
+	// 	mySqlConnString := os.Getenv("MYSQL_CONN_STRING")
+	// 	if len(mySqlConnString) == 0 {
+	// 		// return nil, errors.New("Missing MYSQL_CONN_STRING env var, are we?")
+	// 	}
+	//
+	// 	http.Handle("/", configureRouter())
+	//
+	// 	port := os.Getenv("PORT")
+	// 	log.Printf("PORT => %s", port)
+	// 	ServerAddr := "127.0.0.1:" + port
+	// 	log.Printf("Running server on %s", ServerAddr)
+	//
+	// 	panic(http.ListenAndServe(ServerAddr, nil))
 
-	var drivers []Driver
-
-	redisConnString := os.Getenv("REDIS_CONN_STRING")
-	if len(redisConnString) == 0 {
-		log.Println("Missing REDIS_CONN_STRING env var, are we?")
-	} else {
-		redisDriver, err := redis.New(redisConnString)
-		if err == nil {
-			drivers = append(drivers, redisDriver)
-		}
+	http.HandleFunc("/", homeHandler)
+	fmt.Println("listening...")
+	err := http.ListenAndServe(":"+os.Getenv("PORT"), nil)
+	if err != nil {
+		panic(err)
 	}
-
-	memcachedConnString := os.Getenv("MEMCACHED_CONN_STRING")
-	if len(memcachedConnString) == 0 {
-		log.Println("Missing MEMCACHED_CONN_STRING env var, are we?")
-	} else {
-		memcachedDriver, err := memcache.New(memcachedConnString)
-		if err == nil {
-			drivers = append(drivers, memcachedDriver)
-		}
-	}
-
-	gostormInstance = *New(drivers...)
-
-	// MySQL
-	mySqlConnString := os.Getenv("MYSQL_CONN_STRING")
-	if len(mySqlConnString) == 0 {
-		// return nil, errors.New("Missing MYSQL_CONN_STRING env var, are we?")
-	}
-
-	http.Handle("/", configureRouter())
-
-	port := os.Getenv("PORT")
-	log.Printf("PORT => %s", port)
-	ServerAddr := "127.0.0.1:" + port
-	log.Printf("Running server on %s", ServerAddr)
-
-	panic(http.ListenAndServe(ServerAddr, nil))
 }

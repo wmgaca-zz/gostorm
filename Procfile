@@ -1,1 +1,1 @@
-web: PORT=$PORT gostorm
+web: gostorm
