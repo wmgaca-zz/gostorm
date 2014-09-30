@@ -20,63 +20,37 @@ type Driver struct {
 // New returns a new RedisDriver, duh.
 func New(connString string) (*Driver, error) {
 	redisURL, err := url.Parse(connString)
-
 	if err != nil {
-		log.Printf("redis.New err=%s", err.Error())
 		return nil, err
 	}
 
 	auth := ""
-
 	if redisURL.User != nil {
-		log.Println("redis.New #2")
 		if password, ok := redisURL.User.Password(); ok {
-			log.Println("redis.New #3")
 			auth = password
-			log.Printf("redis.New auth=%s", auth)
 		}
 	}
 
-	log.Println("redis.New dialing...")
 	conn, err := redigo.Dial(redisProtocol, redisURL.Host)
-
 	if err != nil {
-		log.Printf("redis.New err=%s", err.Error())
 		return nil, err
 	}
 
 	if len(auth) > 0 {
-		log.Println("redis.New auth...")
 		_, err = conn.Do("AUTH", auth)
-
 		if err != nil {
-			log.Printf("redis.New err=%s", err.Error())
 			return nil, err
 		}
 	}
 
 	if len(redisURL.Path) > 1 {
-		log.Println("redis.New #4")
 		db := strings.TrimPrefix(redisURL.Path, "/")
 		conn.Do("SELECT", db)
 	}
 
-	log.Printf("redis.New conn=%s", conn)
+	log.Println("redis.New OK")
 
 	return &Driver{conn: conn}, nil
-
-	//
-	// conn, err := redigo.Dial(redisProtocol, connString)
-	//
-	// log.Printf("Connecting to Redis => %s", connString)
-	//
-	// if err != nil {
-	// 	return nil, errors.New("Can't connect to Redis.")
-	// }
-	//
-	// log.Println("Connecting to Redis => OK")
-	//
-	// return &Driver{conn: conn}, nil
 }
 
 // Get return a value for a given key or an error if occured

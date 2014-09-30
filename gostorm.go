@@ -17,7 +17,7 @@ var Debug = true
 
 var gostormInstance Gostorm
 
-const defaultTimeout = 5 * time.Second
+const defaultTimeout = 10 * time.Second
 
 func init() {
 	if len(os.Getenv("DEBUG")) > 0 {
@@ -65,7 +65,7 @@ func (gs *Gostorm) GetWithTimeout(key string, timeout time.Duration) (string, er
 			retCount++
 			log.Printf("gs.err => %s", err)
 			// 2 == number of data stores we're using at the moment ;)
-			if retCount == 2 {
+			if retCount == len(gs.drivers) {
 				return "", err
 			}
 		default:
