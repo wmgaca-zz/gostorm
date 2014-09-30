@@ -148,7 +148,9 @@ func main() {
 	}
 
 	http.Handle("/", configureRouter())
-	ServerAddr := ":8000"
+	port := os.Getenv("PORT")
+	log.Printf("PORT => %s", port)
+	ServerAddr := ":" + port
 	log.Printf("Running server on %s", ServerAddr)
 	panic(http.ListenAndServe(ServerAddr, nil))
 }
