@@ -2,7 +2,7 @@ package redis
 
 import (
 	// "errors"
-	"fmt"
+
 	"log"
 	"net/url"
 	"strings"
@@ -22,34 +22,41 @@ func New(connString string) (*Driver, error) {
 	redisURL, err := url.Parse(connString)
 
 	if err != nil {
+		log.Printf("redis.New err=%s", err.Error())
 		return nil, err
 	}
 
 	auth := ""
 
 	if redisURL.User != nil {
+		log.Println("redis.New #2")
 		if password, ok := redisURL.User.Password(); ok {
+			log.Println("redis.New #3")
 			auth = password
+			log.Printf("redis.New auth=%s", auth)
 		}
 	}
 
+	log.Println("redis.New dialing...")
 	conn, err := redigo.Dial(redisProtocol, redisURL.Host)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Printf("redis.New err=%s", err.Error())
 		return nil, err
 	}
 
 	if len(auth) > 0 {
+		log.Println("redis.New auth...")
 		_, err = conn.Do("AUTH", auth)
 
 		if err != nil {
-			fmt.Println(err)
+			log.Printf("redis.New err=%s", err.Error())
 			return nil, err
 		}
 	}
 
 	if len(redisURL.Path) > 1 {
+		log.Println("redis.New #4")
 		db := strings.TrimPrefix(redisURL.Path, "/")
 		conn.Do("SELECT", db)
 	}
