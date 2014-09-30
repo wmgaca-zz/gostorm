@@ -137,12 +137,12 @@ func main() {
 	// 	}
 	//
 	gostormInstance = *New(drivers...)
-	//
-	// 	// MySQL
-	// 	mySqlConnString := os.Getenv("MYSQL_CONN_STRING")
-	// 	if len(mySqlConnString) == 0 {
-	// 		// return nil, errors.New("Missing MYSQL_CONN_STRING env var, are we?")
-	// 	}
+
+	// MySQL
+	mySqlConnString := os.Getenv("MYSQL_CONN_STRING")
+	if len(mySqlConnString) == 0 {
+		// return nil, errors.New("Missing MYSQL_CONN_STRING env var, are we?")
+	}
 
 	ServerAddr := ":" + os.Getenv("PORT")
 	log.Printf("Running server on %s", ServerAddr)
