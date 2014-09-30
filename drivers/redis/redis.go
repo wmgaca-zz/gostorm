@@ -61,6 +61,8 @@ func New(connString string) (*Driver, error) {
 		conn.Do("SELECT", db)
 	}
 
+	log.Printf("redis.New conn=%s", conn)
+
 	return &Driver{conn: conn}, nil
 
 	//
