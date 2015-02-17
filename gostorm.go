@@ -12,34 +12,54 @@ import (
 	"github.com/wmgaca/gostorm/drivers/redis"
 )
 
-// Debug mode, more verbose if true
-var Debug = false
+const (
+	// DefaultTimeout for Gostorm to wait for a datastore,
+	// will return ErrTimeout if the operation takes longer
+	DefaultTimeout = 10 * time.Second
+)
 
-var gostormInstance Gostorm
+var (
+	gostormInstance Gostorm
 
-const defaultTimeout = 10 * time.Second
+	missingEnvVarErrString = "Missing $%s environmental variable, aren't we?"
+
+	// ErrTimeout is returned when the datastors fail
+	// to return an answer in a given time
+	ErrTimeout = errors.New("Gostorm query timed out.")
+
+	// Debug mode, more verbose if true
+	Debug = false
+
+	// ServerAddr that gostorm listen on
+	ServerAddr string
+)
 
 func init() {
 	if len(os.Getenv("DEBUG")) > 0 {
 		Debug = true
 	}
-
 	log.Printf("gostorm Debug=%t", Debug)
+
+	ServerAddr = ":" + os.Getenv("PORT")
+	if !(len(ServerAddr) > 1) {
+		log.Printf(missingEnvVarErrString, "PORT")
+	}
+	log.Printf("gostorm ServerAddr=%s", ServerAddr)
 }
 
-// Gostorm is Gostorm's config
+// Gostorm is Gostorm, duh
 type Gostorm struct {
 	drivers []Driver
 }
 
-// New sets up Gostorm's connections
+// New returns a new Gostorm instance
 func New(drivers ...Driver) *Gostorm {
 	return &Gostorm{
 		drivers: drivers,
 	}
 }
 
-// GetWithTimeout a value by key
+// GetWithTimeout will try to fetch the value for a given key from the datastores
 func (gs *Gostorm) GetWithTimeout(key string, timeout time.Duration) (string, error) {
 	retChan := make(chan string)
 	errChan := make(chan error)
@@ -49,12 +69,11 @@ func (gs *Gostorm) GetWithTimeout(key string, timeout time.Duration) (string, er
 	}
 
 	var (
-		ret string
-		err error
+		ret       string
+		err       error
+		retCount  = 0
+		startTime = time.Now()
 	)
-
-	retCount := 0
-	startTime := time.Now()
 
 	for {
 		select {
@@ -66,11 +85,12 @@ func (gs *Gostorm) GetWithTimeout(key string, timeout time.Duration) (string, er
 			retCount++
 			log.Printf("gostorm.err => %s", err)
 			if retCount == len(gs.drivers) {
+				// Don't expect any more answers at this point
 				return "", err
 			}
 		default:
 			if time.Since(startTime) > timeout {
-				return "", errors.New("Gostorm connection timeout.")
+				return "", ErrTimeout
 			}
 		}
 	}
@@ -86,42 +106,41 @@ func (gs *Gostorm) SetWithTimeout(key, value string, timeout time.Duration) erro
 	}
 
 	var (
-		ret string
-		err error
+		ret       string
+		err       error
+		retCount  = 0
+		startTime = time.Now()
 	)
-
-	retCount := 0
-	startTime := time.Now()
 
 	for {
 		select {
 		case ret = <-retChan:
 			retCount++
-			log.Printf("gs.set => %s", ret)
+			log.Printf("gostorm.set => %s", ret)
 			return nil
 		case err = <-errChan:
 			retCount++
-			log.Printf("gs.set => %s", err)
-			// 2 == number of data stores we're using at the moment ;)
-			if retCount == 2 {
+			log.Printf("gostorm.set => %s", err)
+			if retCount == len(gs.drivers) {
+				// Don't expect any more answers at this point
 				return err
 			}
 		default:
 			if time.Since(startTime) > timeout {
-				return errors.New("Gostorm connection timeout.")
+				return ErrTimeout
 			}
 		}
 	}
 }
 
-// Get a value by key
+// Get a value for given key, uses DefaultTimeout
 func (gs *Gostorm) Get(key string) (string, error) {
-	return gs.GetWithTimeout(key, defaultTimeout)
+	return gs.GetWithTimeout(key, DefaultTimeout)
 }
 
-// Set a key=value
+// Set a value for given key, uses DefaultTimeout
 func (gs *Gostorm) Set(key, value string) error {
-	return gs.SetWithTimeout(key, value, defaultTimeout)
+	return gs.SetWithTimeout(key, value, DefaultTimeout)
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
@@ -145,11 +164,12 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func setHandler(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseForm()
-
-	key := "?"
-	value := "?"
-	ret := "?"
+	var (
+		err   = r.ParseForm()
+		key   = "?"
+		value = "?"
+		ret   = "?"
+	)
 
 	if err != nil {
 		ret = err.Error()
@@ -157,7 +177,6 @@ func setHandler(w http.ResponseWriter, r *http.Request) {
 		if len(r.PostForm["key"]) == 0 || len(r.PostForm["value"]) == 0 {
 			ret = "Missing key or value?"
 		} else {
-
 			key = r.PostForm["key"][0]
 			value = r.PostForm["value"][0]
 
@@ -185,13 +204,15 @@ func configureRouter() *mux.Router {
 }
 
 func main() {
-	log.Println("Starting gostorm...")
+	GetDrivers()
+
+	log.Println("gostorm.main")
 
 	var drivers []Driver
 
 	redisConnString := os.Getenv("REDISTOGO_URL")
 	if len(redisConnString) == 0 {
-		log.Println("Missing REDISTOGO_URL env var, are we?")
+		log.Printf(missingEnvVarErrString, "REDISTOGO_URL")
 	} else {
 		redisDriver, err := redis.New(redisConnString)
 		if err == nil {
@@ -209,21 +230,16 @@ func main() {
 	// 	}
 	// }
 
-	gostormInstance = *New(drivers...)
-
 	// MySQL
 	// mySqlConnString := os.Getenv("MYSQL_CONN_STRING")
 	// if len(mySqlConnString) == 0 {
 	// 	// return nil, errors.New("Missing MYSQL_CONN_STRING env var, are we?")
 	// }
 
-	ServerAddr := ":" + os.Getenv("PORT")
+	gostormInstance = *New(drivers...)
+
 	log.Printf("Running server on %s", ServerAddr)
-
 	http.Handle("/", configureRouter())
-	// http.HandleFunc("/", homeHandler)
-	fmt.Println("listening...")
-
 	err := http.ListenAndServe(ServerAddr, nil)
 	if err != nil {
 		panic(err)

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	redigo "github.com/garyburd/redigo/redis"
+	gostorm "github.com/wmgaca/gostorm"
 )
 
 const redisProtocol = "tcp"
@@ -18,7 +19,7 @@ type Driver struct {
 }
 
 // New returns a new RedisDriver, duh.
-func New(connString string) (*Driver, error) {
+func New(connString string) (*gostorm.Driver, error) {
 	redisURL, err := url.Parse(connString)
 	if err != nil {
 		return nil, err
